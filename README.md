@@ -2,15 +2,6 @@
 
 ## Project Summary
 
-In this project you will build and explain a small music recommender system.
-
-Your goal is to:
-
-- Represent songs and a user "taste profile" as data
-- Design a scoring rule that turns that data into recommendations
-- Evaluate what your system gets right and wrong
-- Reflect on how this mirrors real world AI recommenders
-
 **ContentMatch 1.0** is a content-based music recommender that suggests songs by matching four dimensions of user taste (favorite genre, mood, target energy, and acousticness preference) against audio features in a catalog of 10 songs. The system uses weighted scoring (35% genre, 30% mood, 25% energy proximity, 10% acousticness) to rank songs and explain why each one is recommended. It demonstrates how platforms like Spotify use audio analysis to personalize suggestions without collaborative filtering.
 
 ---
@@ -58,7 +49,9 @@ Real-world platforms like Spotify and TikTok use two main filtering strategies:
 
 You can include a simple diagram or bullet list if helpful. -->
 ---
-- [ ] [insert screenshot here]
+## Demo
+- [![alt text](musicRecommenderTerminalScreenshot.jpg)] [Screenshot]
+-
 
 ---
 
