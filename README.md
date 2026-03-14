@@ -11,7 +11,7 @@ Your goal is to:
 - Evaluate what your system gets right and wrong
 - Reflect on how this mirrors real world AI recommenders
 
-Replace this paragraph with your own summary of what your version does.
+**ContentMatch 1.0** is a content-based music recommender that suggests songs by matching four dimensions of user taste (favorite genre, mood, target energy, and acousticness preference) against audio features in a catalog of 10 songs. The system uses weighted scoring (35% genre, 30% mood, 25% energy proximity, 10% acousticness) to rank songs and explain why each one is recommended. It demonstrates how platforms like Spotify use audio analysis to personalize suggestions without collaborative filtering.
 
 ---
 
@@ -19,7 +19,36 @@ Replace this paragraph with your own summary of what your version does.
 
 Explain your design in plain language.
 
-Some prompts to answer:
+### Streaming Platforms: Two Approaches
+
+Real-world platforms like Spotify and TikTok use two main filtering strategies:
+- **Collaborative Filtering**: "Users like you also liked..." — finds people with similar behavior and recommends what they enjoyed
+- **Content-Based Filtering**: Analyzes song attributes directly to match user taste (what we implemented)
+
+### Our Design: Content-Based Matching
+
+**Song Representation** — Each song has 10 attributes:
+- **Categorical**: genre, mood, artist, title
+- **Continuous (0–1 scale)**: energy, valence, danceability, acousticness
+- **Other**: tempo_bpm, id
+
+**User Profile** — Captured in four dimensions:
+1. Favorite genre (e.g., "pop")
+2. Favorite mood (e.g., "happy")
+3. Target energy level (0–1 scale)
+4. Acousticness preference (acoustic vs. electronic)
+
+**Scoring Formula** — For each song, we calculate a match score:
+- Genre match → +0.35 if exact match, else 0
+- Mood match → +0.30 if exact match, else 0
+- Energy proximity → +0.25 × (1 − |song_energy − target_energy|)
+- Acousticness match → +0.10 if song's acoustic nature matches preference
+- **Total score range**: 0–1.0
+
+**Ranking** — All songs are scored, sorted by score descending, and the top-k (default 5) are returned with explanations. 
+
+
+<!-- Some prompts to answer:
 
 - What features does each `Song` use in your system
   - For example: genre, mood, energy, tempo
@@ -27,7 +56,7 @@ Some prompts to answer:
 - How does your `Recommender` compute a score for each song
 - How do you choose which songs to recommend
 
-You can include a simple diagram or bullet list if helpful.
+You can include a simple diagram or bullet list if helpful. -->
 
 ---
 
@@ -68,144 +97,62 @@ You can add more tests in `tests/test_recommender.py`.
 
 ## Experiments You Tried
 
-Use this section to document the experiments you ran. For example:
+### User Profile Tests
 
-- What happened when you changed the weight on genre from 2.0 to 0.5
-- What happened when you added tempo or valence to the score
-- How did your system behave for different types of users
+1. **The Pop Fan** — {genre: "pop", mood: "happy", energy: 0.8}
+   - Expected: Pop + happy + high-energy songs ranked first
+   - Result: ✓ *Sunrise City* (score 0.99) correctly ranked #1
+
+2. **The Lofi Coder** — {genre: "lofi", mood: "chill", energy: 0.4}
+   - Expected: Lofi songs dominate
+   - Result: ✓ Both lofi songs ranked in top 3
+
+3. **The Rock Enthusiast** — {genre: "rock", mood: "intense", energy: 0.9}
+   - Expected: *Storm Runner* (rock, intense, high energy) ranked first
+   - Result: ✓ *Storm Runner* dominates all other recommendations
+
+4. **The Acoustic Minimalist** — {genre: "ambient", mood: "chill", energy: 0.3, likes_acoustic: true}
+   - Expected: Ambient + highly acoustic songs
+   - Result: ✓ *Spacewalk Thoughts* (ambient, energy 0.28, acousticness 0.92) ranked first
+
+### Key Findings
+
+- **Genre-mood matches strongly dominate**: Exact categorical matches (35% + 30% = 65% of score) override other factors
+- **Energy as fine-tuning works well**: Within a preferred genre, energy separates similar songs effectively
+- **Acousticness weight (10%) appropriate**: Acts as tiebreaker without overwhelming other signals
+- **Energy clustering visible**: Small catalog has songs clustered at low (0.28–0.42) and high (0.82–0.93) energy; mid-range users get poorer matches
 
 ---
 
 ## Limitations and Risks
 
-Summarize some limitations of your recommender.
+- **Tiny catalog (10 songs)**: Users with niche preferences (indie, rock, jazz) have only 1 matching option
+- **No collaborative signals**: Can't learn from what other users liked; misses cross-user patterns
+- **Cold start problem**: Requires users to articulate four dimensions of taste upfront
+- **Genre/mood imbalance**: Pop is 2/10 songs; other genres severely underrepresented
+- **No diversity re-ranking**: Top-5 recommendations might all be the same genre/artist
+- **Energy clustering**: Gap in mid-range energy (0.5) leaves some users with poor matches
+- **Binary acousticness split**: Oversimplifies the spectrum of acoustic-to-electronic sounds
+- **No temporal context**: Ignores time-of-day, user activity, or trending songs
 
-Examples:
-
-- It only works on a tiny catalog
-- It does not understand lyrics or language
-- It might over favor one genre or mood
-
-You will go deeper on this in your model card.
+See [model_card.md](model_card.md) for deeper analysis of strengths, limitations, and bias.
 
 ---
 
 ## Reflection
 
-Read and complete `model_card.md`:
+### What I Learned
 
-[**Model Card**](model_card.md)
+Building ContentMatch revealed that recommendation systems are fundamentally about translating taste into numbers. The choice of weights (35%-30%-25%-10%) isn't just arithmetic—it's an *editorial decision* about what matters in music. Increase genre weight to 50%, and users get more category-focused results; decrease it to 20%, and energy becomes the dominant signal. Real platforms make these choices deliberately, optimizing for engagement, fairness, and discovery simultaneously.
 
-Write 1 to 2 paragraphs here about what you learned:
+The most surprising insight was how limiting pure content-based filtering feels. With only exact attribute matches, the system recommends "half-matches"—high-energy rock to a pop fan because both energies align. Spotify escapes this trap using collaborative filtering: if thousands of users liked both *Song A* and *Song B*, users who liked *A* get *B* recommended, regardless of whether audio features match. This cross-user wisdom is invisible but powerful.
 
-- about how recommenders turn data into predictions
-- about where bias or unfairness could show up in systems like this
+### Where Bias Shows Up
 
+**Dataset bias**: Pop music is overrepresented (2/10 songs vs. 1 each for rock, jazz, ambient). A pop user gets rich options; a jazz fan sees only one song and gets diluted with other acoustic music.
 
----
+**Feature bias**: By binary-splitting acousticness (>0.5 = acoustic), we force users into categories they may not fit. A user who loves *some* electronic sounds and *some* acoustic ones must choose one preference, creating artificial constraints.
 
-## 7. `model_card_template.md`
+**Cold-start bias**: Without collaborative data, new users get generic recommendations based on crude profiles. Spotify can learn from other pop fans; we can't. This creates a feedback loop where engaged users (who provide data) get better recommendations, widening inequality.
 
-Combines reflection and model card framing from the Module 3 guidance. :contentReference[oaicite:2]{index=2}  
-
-```markdown
-# 🎧 Model Card - Music Recommender Simulation
-
-## 1. Model Name
-
-Give your recommender a name, for example:
-
-> VibeFinder 1.0
-
----
-
-## 2. Intended Use
-
-- What is this system trying to do
-- Who is it for
-
-Example:
-
-> This model suggests 3 to 5 songs from a small catalog based on a user's preferred genre, mood, and energy level. It is for classroom exploration only, not for real users.
-
----
-
-## 3. How It Works (Short Explanation)
-
-Describe your scoring logic in plain language.
-
-- What features of each song does it consider
-- What information about the user does it use
-- How does it turn those into a number
-
-Try to avoid code in this section, treat it like an explanation to a non programmer.
-
----
-
-## 4. Data
-
-Describe your dataset.
-
-- How many songs are in `data/songs.csv`
-- Did you add or remove any songs
-- What kinds of genres or moods are represented
-- Whose taste does this data mostly reflect
-
----
-
-## 5. Strengths
-
-Where does your recommender work well
-
-You can think about:
-- Situations where the top results "felt right"
-- Particular user profiles it served well
-- Simplicity or transparency benefits
-
----
-
-## 6. Limitations and Bias
-
-Where does your recommender struggle
-
-Some prompts:
-- Does it ignore some genres or moods
-- Does it treat all users as if they have the same taste shape
-- Is it biased toward high energy or one genre by default
-- How could this be unfair if used in a real product
-
----
-
-## 7. Evaluation
-
-How did you check your system
-
-Examples:
-- You tried multiple user profiles and wrote down whether the results matched your expectations
-- You compared your simulation to what a real app like Spotify or YouTube tends to recommend
-- You wrote tests for your scoring logic
-
-You do not need a numeric metric, but if you used one, explain what it measures.
-
----
-
-## 8. Future Work
-
-If you had more time, how would you improve this recommender
-
-Examples:
-
-- Add support for multiple users and "group vibe" recommendations
-- Balance diversity of songs instead of always picking the closest match
-- Use more features, like tempo ranges or lyric themes
-
----
-
-## 9. Personal Reflection
-
-A few sentences about what you learned:
-
-- What surprised you about how your system behaved
-- How did building this change how you think about real music recommenders
-- Where do you think human judgment still matters, even if the model seems "smart"
-
+See [model_card.md](model_card.md) for a complete analysis of system strengths, limitations, and future improvements.
