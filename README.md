@@ -57,6 +57,8 @@ Real-world platforms like Spotify and TikTok use two main filtering strategies:
 - How do you choose which songs to recommend
 
 You can include a simple diagram or bullet list if helpful. -->
+---
+- [ ] [insert screenshot here]
 
 ---
 
